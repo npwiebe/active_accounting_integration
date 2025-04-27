@@ -13,11 +13,15 @@ module ActiveInvoicing
         }
 
         QUICKBOOKS_OAUTH_REQUEST_DEFAULTS = {
-          scope: "com.intuit.quickbooks.accounting",
+          scope: "com.intuit.quickbooks.accounting openid profile email phone address",
           response_type: "code",
           grant_type: "authorization_code",
+          sandbox_domain: "https://sandbox-quickbooks.api.intuit.com",
+          production_domain: "https://quickbooks.api.intuit.com",
         }
+
         attr_reader :client_id, :client_secret, :redirect_uri, :realm_id, :scope, :code, :tokens
+        attr_writer :realm_id
 
         def initialize(redirect_uri, scope = QUICKBOOKS_OAUTH_REQUEST_DEFAULTS[:scope], client_id = nil, client_secret = nil)
           @client_id = client_id || ActiveInvoicing.configuration.quickbooks_client_id
@@ -48,10 +52,16 @@ module ActiveInvoicing
           @tokens = @tokens.refresh!
         end
 
-        def make_request(endpoint)
-          response = @tokens.request(endpoint)
-          yield(response) if block_given?
-          response
+        def domain
+          ActiveInvoicing::Configuration.sandbox_mode ? QUICKBOOKS_OAUTH_REQUEST_DEFAULTS[:sandbox_domain] : QUICKBOOKS_OAUTH_REQUEST_DEFAULTS[:production_domain]
+        end
+
+        def request(verb, path, opts = {})
+          opts[:headers] ||= {}
+          opts[:headers]["Content-Type"] ||= "application/json"
+          opts[:headers]["Accept"] ||= "application/json"
+          uri = URI.join(domain, path)
+          @tokens.request(verb, uri, opts)
         end
       end
     end
