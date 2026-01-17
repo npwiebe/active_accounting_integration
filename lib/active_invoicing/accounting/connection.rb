@@ -5,7 +5,7 @@ module ActiveInvoicing
     class Connection
       INTEGRATIONS = {
         quickbooks: "ActiveInvoicing::Accounting::Quickbooks::Connection",
-        # xero: "ActiveInvoicing::Accounting::Xero::Connection",
+        xero: "ActiveInvoicing::Accounting::Xero::Connection",
       }
 
       class << self
