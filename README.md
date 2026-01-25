@@ -230,10 +230,6 @@ class User < ApplicationRecord
       realm_id: self.quickbooks_realm_id
     )
   end
-
-  def accounting_connection
-    quickbooks_customer_connection # or another connection method
-  end
 end
 ```
 
@@ -266,11 +262,6 @@ Push data from your Rails model to the accounting platform:
 user = User.find(1)
 user.name = "Updated Name"
 user.email = "updated@example.com"
-
-# Sync specific attributes to the accounting model
-user.sync_to_quickbooks_customer
-
-# Or sync all common attributes automatically
 user.sync_to_quickbooks_customer # Uses default mapping
 ```
 
@@ -289,45 +280,39 @@ user.sync_from_quickbooks_customer
 
 #### Custom Mappers
 
-For complex mappings, provide custom mapper procs:
+For complex mappings, you can provide separate mappers for each direction or a single mapper for both:
+
+**Option 1: Separate mappers (recommended for clarity)**
 
 ```ruby
 class User < ApplicationRecord
   mounts_accounting_model :quickbooks_customer,
     class_name: "ActiveInvoicing::Accounting::Quickbooks::Customer",
     external_id_column: :quickbooks_customer_id,
-    mapper: ->(accounting_model) do
-      # Custom mapping logic for sync_to (Rails -> Accounting)
+    mapper_to: ->(accounting_model) do
+      # Rails -> Accounting: Map from self (Rails model) to accounting model
       {
         display_name: "#{first_name} #{last_name}",
         primary_email_address: { address: email },
         company_name: business_name
       }
+    end,
+    mapper_from: ->(accounting_model) do
+      # Accounting -> Rails: Map from accounting model to self (Rails model)
+      {
+        first_name: accounting_model.given_name,
+        last_name: accounting_model.family_name,
+        email: accounting_model.primary_email_address&.address
+      }
     end
-
-  # You can also define separate mappers for sync_from
-  def sync_from_quickbooks_customer_with_mapper
-    customer = quickbooks_customer
-    return unless customer
-
-    # Custom mapping for sync_from (Accounting -> Rails)
-    self.first_name = customer.given_name
-    self.last_name = customer.family_name
-    self.email = customer.primary_email_address&.address
-    save
-  end
 end
 ```
 
 ### Default Mappings
 
-When no custom mapper is provided, the module uses sensible defaults:
+When no custom mapper is provided, the module automatically discovers and maps **all attributes** with matching names between your Rails model and the accounting model.
 
-**For `sync_to_*` (Rails → Accounting):**
-- Maps common attributes like `:name`, `:email`, `:first_name`, `:last_name`, `:company_name`
-
-**For `sync_from_*` (Accounting → Rails):**
-- Maps common attributes like `:name`, `:email`, `:first_name`, `:last_name`
+**For example:** If your Rails model has a `phone` attribute and the QuickBooks customer model also has a `phone` attribute, they will be automatically synchronized in both directions without any custom mapper code.
 
 ### Complete Example
 
@@ -378,15 +363,15 @@ class User < ApplicationRecord
 end
 ```
 
-This mountable integration makes it easy to keep your Rails application and accounting data in sync, handling the complexities of API authentication, data mapping, and bidirectional synchronization automatically.
+The mountable functionality keeps your Rails application and accounting data in sync, handling the API authentication, data mapping, and bidirectional synchronization automatically.
 
 ## Xero Usage
 
-Xero support is still being built out. Basic customer and invoice fetching works:
+Xero support is still being built out :)
 
 ## Supported Providers
 
-**QuickBooks** - Customers, Invoices, and Payments are fully supported
+**QuickBooks** - Customers, Invoices, and Payments are fully supported. Is mountable. 
 
 ## License
 

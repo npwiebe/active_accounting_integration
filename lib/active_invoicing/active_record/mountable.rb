@@ -13,7 +13,7 @@ module ActiveInvoicing
       end
 
       module ClassMethods
-        def mounts_accounting_model(name, class_name:, external_id_column:, connection_method: nil, mapper: nil, sync_on_save: false)
+        def mounts_accounting_model(name, class_name:, external_id_column:, connection_method: nil, mapper_to: nil, mapper_from: nil, sync_on_save: false)
           name = name.to_sym
           class_name = class_name.to_s
           connection_method = connection_method&.to_sym || default_connection_method(name)
@@ -24,7 +24,8 @@ module ActiveInvoicing
               class_name: class_name,
               connection_method: connection_method,
               external_id_column: external_id_column,
-              mapper: mapper,
+              mapper_to: mapper_to,
+              mapper_from: mapper_from,
             },
           )
 
@@ -59,8 +60,8 @@ module ActiveInvoicing
             accounting_model = public_send(name)
             return unless accounting_model
 
-            attributes = if config[:mapper]
-              instance_exec(accounting_model, &config[:mapper])
+            attributes = if config[:mapper_to]
+              instance_exec(accounting_model, &config[:mapper_to])
             else
               default_map_to_accounting_model(accounting_model)
             end
@@ -80,8 +81,8 @@ module ActiveInvoicing
             accounting_model = public_send(name)
             return unless accounting_model
 
-            attributes = if config[:mapper]
-              instance_exec(accounting_model, &config[:mapper])
+            attributes = if config[:mapper_from]
+              instance_exec(accounting_model, &config[:mapper_from])
             else
               default_map_from_accounting_model(accounting_model)
             end
@@ -102,26 +103,25 @@ module ActiveInvoicing
       private
 
       def default_map_to_accounting_model(accounting_model)
-        attributes = {}
-        # just some common attributes
-        [:name, :email, :first_name, :last_name, :company_name].each do |attr|
-          if respond_to?(attr) && accounting_model.respond_to?("#{attr}=")
-            value = public_send(attr)
-            attributes[attr] = value if value.present?
-          end
-        end
-        attributes
+        default_map(from: self, to: accounting_model)
       end
 
       def default_map_from_accounting_model(accounting_model)
+        default_map(from: accounting_model, to: self)
+      end
+
+      def default_map(from:, to:)
         attributes = {}
-        # just some common attributes
-        [:name, :email, :first_name, :last_name].each do |attr|
-          if accounting_model.respond_to?(attr) && respond_to?("#{attr}=")
-            value = accounting_model.public_send(attr)
-            attributes[attr] = value if value.present?
+
+        from.class.attributes.keys.each do |attr_sym|
+          setter_name = "#{attr_sym}="
+
+          if to.respond_to?(attr_sym) && from.respond_to?(setter_name)
+            value = from.public_send(attr_sym)
+            attributes[attr_sym] = value if value.present?
           end
         end
+
         attributes
       end
     end

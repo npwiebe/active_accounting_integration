@@ -27,6 +27,10 @@ RSpec.describe(ActiveInvoicing::ActiveRecord::Mountable) do
         nil
       end
 
+      def quickbooks_customer_separate_connection
+        nil
+      end
+
       # Set up respond_to? expectations for common attributes
       def respond_to?(method_name, include_private = false)
         case method_name.to_s
@@ -47,6 +51,28 @@ RSpec.describe(ActiveInvoicing::ActiveRecord::Mountable) do
       allow(model).to(receive(:email).and_return("test@example.com"))
       allow(model).to(receive(:first_name).and_return("John"))
       allow(model).to(receive(:last_name).and_return("Doe"))
+      # Add common attributes that the new mapping tries
+      allow(model).to(receive(:company_name).and_return("Test Company"))
+      allow(model).to(receive(:phone).and_return("555-1234"))
+      allow(model).to(receive(:address).and_return("123 Main St"))
+      allow(model).to(receive(:city).and_return("Anytown"))
+      allow(model).to(receive(:state).and_return("CA"))
+      allow(model).to(receive(:zip_code).and_return("12345"))
+      allow(model).to(receive(:country).and_return("USA"))
+      allow(model).to(receive(:description).and_return("Test description"))
+      allow(model).to(receive(:notes).and_return("Test notes"))
+      allow(model).to(receive(:balance).and_return(100.0))
+      allow(model).to(receive(:total).and_return(200.0))
+      allow(model).to(receive(:amount).and_return(150.0))
+      allow(model).to(receive(:price).and_return(50.0))
+      allow(model).to(receive(:cost).and_return(40.0))
+      allow(model).to(receive(:quantity).and_return(2))
+      allow(model).to(receive(:tax_rate).and_return(0.08))
+      allow(model).to(receive(:discount).and_return(10.0))
+      allow(model).to(receive(:due_date).and_return(Date.today))
+      allow(model).to(receive(:invoice_date).and_return(Date.today))
+      allow(model).to(receive(:paid_at).and_return(Date.today))
+
       # Set up respond_to? expectations for common attributes
       allow(model).to(receive(:respond_to?).and_return(true)) # Allow any respond_to? call by default
       allow(model).to(receive(:respond_to?).with(:name).and_return(true))
@@ -70,6 +96,14 @@ RSpec.describe(ActiveInvoicing::ActiveRecord::Mountable) do
   let(:mock_accounting_class) do
     double("accounting_class").tap do |klass|
       allow(klass).to(receive(:fetch_by_id).and_return(mock_accounting_model))
+
+      allow(klass).to(receive(:attributes).and_return({
+        name: double(name: :name, setter: "name="),
+        email: double(name: :email, setter: "email="),
+        first_name: double(name: :first_name, setter: "first_name="),
+        last_name: double(name: :last_name, setter: "last_name="),
+        company_name: double(name: :company_name, setter: "company_name="),
+      }))
     end
   end
 
@@ -266,6 +300,65 @@ RSpec.describe(ActiveInvoicing::ActiveRecord::Mountable) do
         expect(result).to(eq(instance))
       end
 
+      it "uses separate mapper_to and mapper_from when provided" do
+        mapper_to = proc do |accounting_model|
+          # Rails -> Accounting
+          {
+            display_name: "#{first_name} #{last_name}",
+            primary_email_address: { address: email },
+          }
+        end
+
+        mapper_from = proc do |accounting_model|
+          # Accounting -> Rails
+          {
+            first_name: accounting_model.given_name,
+            last_name: accounting_model.family_name,
+            email: accounting_model.primary_email_address&.address,
+          }
+        end
+
+        mock_accounting_model_with_names = double("accounting_model").tap do |model|
+          allow(model).to(receive(:external_id).and_return("123"))
+          allow(model).to(receive(:given_name).and_return("Jane"))
+          allow(model).to(receive(:family_name).and_return("Smith"))
+          allow(model).to(receive(:primary_email_address).and_return(double(address: "jane@example.com")))
+          allow(model).to(receive(:display_name=))
+          allow(model).to(receive(:primary_email_address=))
+          allow(model).to(receive(:save))
+        end
+
+        mock_accounting_class_with_names = double("accounting_class").tap do |klass|
+          allow(klass).to(receive(:fetch_by_id).and_return(mock_accounting_model_with_names))
+        end
+
+        stub_const("TestAccountingModel", mock_accounting_class_with_names)
+        test_class.mounts_accounting_model(
+          :quickbooks_customer_separate,
+          class_name: "TestAccountingModel",
+          external_id_column: :quickbooks_customer_id,
+          mapper_to: mapper_to,
+          mapper_from: mapper_from,
+        )
+
+        instance.first_name = "John"
+        instance.last_name = "Doe"
+        instance.email = "john@example.com"
+        instance.quickbooks_customer_id = "123"
+        allow(instance).to(receive(:quickbooks_customer_separate_connection).and_return(mock_connection))
+
+        # Test sync_to direction
+        result_to = instance.sync_to_quickbooks_customer_separate
+        expect(mock_accounting_model_with_names).to(have_received(:display_name=).with("John Doe"))
+        expect(mock_accounting_model_with_names).to(have_received(:primary_email_address=).with({ address: "john@example.com" }))
+
+        # Test sync_from direction
+        result_from = instance.sync_from_quickbooks_customer_separate
+        expect(instance.first_name).to(eq("Jane"))
+        expect(instance.last_name).to(eq("Smith"))
+        expect(instance.email).to(eq("jane@example.com"))
+      end
+
       it "returns nil when accounting model is not available" do
         allow(instance).to(receive(:quickbooks_customer).and_return(nil))
 
@@ -343,10 +436,9 @@ RSpec.describe(ActiveInvoicing::ActiveRecord::Mountable) do
 
     it "excludes attributes that don't exist on ActiveRecord model" do
       test_instance = test_class.new
+      # Allow all respond_to? calls by default, then override specific ones
+      allow(test_instance).to(receive(:respond_to?).and_return(true))
       allow(test_instance).to(receive(:respond_to?).with("name=").and_return(false))
-      allow(test_instance).to(receive(:respond_to?).with("email=").and_return(true))
-      allow(test_instance).to(receive(:respond_to?).with("first_name=").and_return(true))
-      allow(test_instance).to(receive(:respond_to?).with("last_name=").and_return(true))
 
       attributes = test_instance.send(:default_map_from_accounting_model, mock_accounting_model)
 
