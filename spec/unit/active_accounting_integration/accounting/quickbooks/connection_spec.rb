@@ -4,7 +4,7 @@ require "oauth2"
 require "securerandom"
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Connection) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::Connection) do
   let(:redirect_uri) { "http://example.com/callback" }
   let(:client_id) { "dummy_client_id" }
   let(:client_secret) { "dummy_client_secret" }
@@ -179,14 +179,14 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Connection) 
 
   describe "customer methods" do
     it "delegates fetch_customer_by_id to Customer class" do
-      expect(ActiveAccountingIntegration::Accounting::Quickbooks::Customer).to(receive(:fetch_by_id)
+      expect(ActiveAccountingIntegration::Quickbooks::Customer).to(receive(:fetch_by_id)
         .with("123", connection))
 
       connection.fetch_customer_by_id("123")
     end
 
     it "delegates fetch_all_customers to Customer class" do
-      expect(ActiveAccountingIntegration::Accounting::Quickbooks::Customer).to(receive(:fetch_all)
+      expect(ActiveAccountingIntegration::Quickbooks::Customer).to(receive(:fetch_all)
         .with(connection))
 
       connection.fetch_all_customers
@@ -195,14 +195,14 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Connection) 
 
   describe "invoice methods" do
     it "delegates fetch_invoice_by_id to Invoice class" do
-      expect(ActiveAccountingIntegration::Accounting::Quickbooks::Invoice).to(receive(:fetch_by_id)
+      expect(ActiveAccountingIntegration::Quickbooks::Invoice).to(receive(:fetch_by_id)
         .with("123", connection))
 
       connection.fetch_invoice_by_id("123")
     end
 
     it "delegates fetch_all_invoices to Invoice class" do
-      expect(ActiveAccountingIntegration::Accounting::Quickbooks::Invoice).to(receive(:fetch_all)
+      expect(ActiveAccountingIntegration::Quickbooks::Invoice).to(receive(:fetch_all)
         .with(connection))
 
       connection.fetch_all_invoices

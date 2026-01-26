@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::DeliveryInfo) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::DeliveryInfo) do
   describe "attributes" do
     let(:delivery_info) do
       described_class.new(

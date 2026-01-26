@@ -2,10 +2,10 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Customer) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::Customer) do
   let(:connection) do
     instance_double(
-      ActiveAccountingIntegration::Accounting::Quickbooks::Connection,
+      ActiveAccountingIntegration::Quickbooks::Connection,
       realm_id: "123456789",
       is_a?: true,
     )
@@ -16,7 +16,7 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Customer) do
   let(:response) { instance_double("HTTP::Response", body: customer_data, success?: true) }
   let(:query_response) { instance_double("HTTP::Response", body: customers_data, success?: true) }
 
-  subject(:customer) { ActiveAccountingIntegration::Accounting::Quickbooks::Response.from_json(customer_data).customer }
+  subject(:customer) { ActiveAccountingIntegration::Quickbooks::Response.from_json(customer_data).customer }
 
   describe "attributes" do
     it "reads attributes from JSON response" do

@@ -2,11 +2,11 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Connection) do
+RSpec.describe(ActiveAccountingIntegration::Connection) do
   describe "INTEGRATIONS" do
     it "defines supported integrations" do
       expect(described_class::INTEGRATIONS).to(include(:quickbooks))
-      expect(described_class::INTEGRATIONS[:quickbooks]).to(eq("ActiveAccountingIntegration::Accounting::Quickbooks::Connection"))
+      expect(described_class::INTEGRATIONS[:quickbooks]).to(eq("ActiveAccountingIntegration::Quickbooks::Connection"))
     end
   end
 
@@ -18,17 +18,17 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Connection) do
     it "creates a test connection for quickbooks" do
       connection = described_class.new_test_connection(:quickbooks)
 
-      expect(connection).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Connection))
+      expect(connection).to(be_a(ActiveAccountingIntegration::Quickbooks::Connection))
     end
 
     it "uses localhost:3000 as the redirect URI" do
-      expect(ActiveAccountingIntegration::Accounting::Quickbooks::Connection).to(receive(:new).with("http://localhost:3000"))
+      expect(ActiveAccountingIntegration::Quickbooks::Connection).to(receive(:new).with("http://localhost:3000"))
       described_class.new_test_connection(:quickbooks)
     end
 
     it "defaults to quickbooks integration" do
       connection = described_class.new_test_connection
-      expect(connection).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Connection))
+      expect(connection).to(be_a(ActiveAccountingIntegration::Quickbooks::Connection))
     end
   end
 
@@ -37,11 +37,11 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Connection) do
       it "creates a quickbooks connection" do
         connection = described_class.new_connection(:quickbooks, "http://example.com/callback")
 
-        expect(connection).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Connection))
+        expect(connection).to(be_a(ActiveAccountingIntegration::Quickbooks::Connection))
       end
 
       it "passes options to the connection constructor" do
-        expect(ActiveAccountingIntegration::Accounting::Quickbooks::Connection).to(receive(:new).with("http://example.com/callback", "custom_scope", "client_id", "client_secret"))
+        expect(ActiveAccountingIntegration::Quickbooks::Connection).to(receive(:new).with("http://example.com/callback", "custom_scope", "client_id", "client_secret"))
         described_class.new_connection(:quickbooks, "http://example.com/callback", "custom_scope", "client_id", "client_secret")
       end
     end
@@ -61,7 +61,7 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Connection) do
     context "with string integration name" do
       it "converts string to symbol" do
         connection = described_class.new_connection("quickbooks", "http://example.com/callback")
-        expect(connection).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Connection))
+        expect(connection).to(be_a(ActiveAccountingIntegration::Quickbooks::Connection))
       end
     end
   end

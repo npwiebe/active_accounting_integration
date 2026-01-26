@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Line) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::Line) do
   describe "attributes" do
     let(:line) do
       described_class.new(

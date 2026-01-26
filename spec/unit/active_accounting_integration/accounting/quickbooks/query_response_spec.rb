@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::QueryResponse) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::QueryResponse) do
   describe "attributes" do
     it "has payments collection attribute" do
       query_response = described_class.new(payments: [])
@@ -41,23 +41,23 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::QueryRespons
 
       expect(query_response.payments).to(be_an(Array))
       expect(query_response.payments.length).to(eq(2))
-      expect(query_response.payments.first).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Payment))
+      expect(query_response.payments.first).to(be_a(ActiveAccountingIntegration::Quickbooks::Payment))
       expect(query_response.payments.first.id).to(eq("pay_1"))
 
       expect(query_response.customers).to(be_an(Array))
       expect(query_response.customers.length).to(eq(1))
-      expect(query_response.customers.first).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Customer))
+      expect(query_response.customers.first).to(be_a(ActiveAccountingIntegration::Quickbooks::Customer))
       expect(query_response.customers.first.id).to(eq("cust_1"))
 
       expect(query_response.invoices).to(be_an(Array))
       expect(query_response.invoices.length).to(eq(1))
-      expect(query_response.invoices.first).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Invoice))
+      expect(query_response.invoices.first).to(be_a(ActiveAccountingIntegration::Quickbooks::Invoice))
       expect(query_response.invoices.first.id).to(eq("inv_1"))
     end
 
     it "serializes to JSON" do
-      payment = ActiveAccountingIntegration::Accounting::Quickbooks::Payment.new(id: "pay_3", total: 300.00)
-      customer = ActiveAccountingIntegration::Accounting::Quickbooks::Customer.new(id: "cust_2", display_name: "Customer 2")
+      payment = ActiveAccountingIntegration::Quickbooks::Payment.new(id: "pay_3", total: 300.00)
+      customer = ActiveAccountingIntegration::Quickbooks::Customer.new(id: "cust_2", display_name: "Customer 2")
 
       query_response = described_class.new(
         payments: [payment],

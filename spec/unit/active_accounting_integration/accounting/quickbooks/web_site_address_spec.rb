@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::WebSiteAddress) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::WebSiteAddress) do
   describe "attributes" do
     it "has uri attribute" do
       website = described_class.new(uri: "https://example.com")

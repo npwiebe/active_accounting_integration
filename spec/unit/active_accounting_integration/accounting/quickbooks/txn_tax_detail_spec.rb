@@ -2,18 +2,18 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::TxnTaxDetail) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::TxnTaxDetail) do
   describe "attributes" do
     let(:txn_tax_detail) do
       described_class.new(
-        txn_tax_code_ref: ActiveAccountingIntegration::Accounting::Quickbooks::BaseReference.new(value: "TAX", name: "Sales Tax"),
+        txn_tax_code_ref: ActiveAccountingIntegration::Quickbooks::BaseReference.new(value: "TAX", name: "Sales Tax"),
         total_tax: 50.00,
         tax_line: [{ "TaxLineDetail" => { "TaxPercent" => 10 } }],
       )
     end
 
     it "has txn_tax_code_ref attribute" do
-      expect(txn_tax_detail.txn_tax_code_ref).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::BaseReference))
+      expect(txn_tax_detail.txn_tax_code_ref).to(be_a(ActiveAccountingIntegration::Quickbooks::BaseReference))
       expect(txn_tax_detail.txn_tax_code_ref.value).to(eq("TAX"))
       expect(txn_tax_detail.txn_tax_code_ref.name).to(eq("Sales Tax"))
     end
@@ -38,7 +38,7 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::TxnTaxDetail
 
     it "deserializes from JSON" do
       txn_tax_detail = described_class.from_json(json_data)
-      expect(txn_tax_detail.txn_tax_code_ref).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::BaseReference))
+      expect(txn_tax_detail.txn_tax_code_ref).to(be_a(ActiveAccountingIntegration::Quickbooks::BaseReference))
       expect(txn_tax_detail.txn_tax_code_ref.value).to(eq("VAT"))
       expect(txn_tax_detail.txn_tax_code_ref.name).to(eq("Value Added Tax"))
       expect(txn_tax_detail.total_tax).to(eq(75.00))
@@ -47,7 +47,7 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::TxnTaxDetail
 
     it "serializes to JSON" do
       txn_tax_detail = described_class.new(
-        txn_tax_code_ref: ActiveAccountingIntegration::Accounting::Quickbooks::BaseReference.new(value: "GST", name: "Goods and Services Tax"),
+        txn_tax_code_ref: ActiveAccountingIntegration::Quickbooks::BaseReference.new(value: "GST", name: "Goods and Services Tax"),
         total_tax: 100.00,
         tax_line: [{ "TaxLineDetail" => { "TaxPercent" => 20 } }],
       )

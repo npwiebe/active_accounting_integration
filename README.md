@@ -46,7 +46,7 @@ First, you need to get the user to authorize your app with QuickBooks:
 
 ```ruby
 redirect_uri = "http://localhost:3000/callback"
-connection = ActiveAccountingIntegration::Accounting::Connection.new_connection(
+connection = ActiveAccountingIntegration::Connection.new_connection(
   :quickbooks,
   redirect_uri
 )
@@ -97,7 +97,7 @@ end
 Create a customer:
 
 ```ruby
-customer = ActiveAccountingIntegration::Accounting::Quickbooks::Customer.create(
+customer = ActiveAccountingIntegration::Quickbooks::Customer.create(
   display_name: "Acme Corp",
   company_name: "Acme Corporation",
   primary_email_address: { address: "billing@acme.com" },
@@ -145,7 +145,7 @@ end
 Create an invoice:
 
 ```ruby
-invoice = ActiveAccountingIntegration::Accounting::Quickbooks::Invoice.create(
+invoice = ActiveAccountingIntegration::Quickbooks::Invoice.create(
   customer_ref: { value: "123" },
   line_items: [
     {
@@ -209,7 +209,7 @@ class User < ApplicationRecord
 
   # Mount a QuickBooks customer
   mounts_accounting_model :quickbooks_customer,
-    class_name: "ActiveAccountingIntegration::Accounting::Quickbooks::Customer",
+    class_name: "ActiveAccountingIntegration::Quickbooks::Customer",
     external_id_column: :quickbooks_customer_id
 
 end
@@ -223,7 +223,7 @@ Your model needs to provide connection methods that return authenticated account
 class User < ApplicationRecord
   def quickbooks_customer_connection
     # Return an authenticated QuickBooks connection
-    @quickbooks_connection ||= ActiveAccountingIntegration::Accounting::Connection.new_connection(
+    @quickbooks_connection ||= ActiveAccountingIntegration::Connection.new_connection(
       :quickbooks,
       access_token: self.quickbooks_access_token,
       refresh_token: self.quickbooks_refresh_token,
@@ -287,7 +287,7 @@ For complex mappings, you can provide separate mappers for each direction or a s
 ```ruby
 class User < ApplicationRecord
   mounts_accounting_model :quickbooks_customer,
-    class_name: "ActiveAccountingIntegration::Accounting::Quickbooks::Customer",
+    class_name: "ActiveAccountingIntegration::Quickbooks::Customer",
     external_id_column: :quickbooks_customer_id,
     mapper_to: ->(accounting_model) do
       # Rails -> Accounting: Map from self (Rails model) to accounting model
@@ -328,11 +328,11 @@ class User < ApplicationRecord
   # t.string :last_name
 
   mounts_accounting_model :quickbooks_customer,
-    class_name: "ActiveAccountingIntegration::Accounting::Quickbooks::Customer",
+    class_name: "ActiveAccountingIntegration::Quickbooks::Customer",
     external_id_column: :quickbooks_customer_id
 
   def quickbooks_customer_connection
-    ActiveAccountingIntegration::Accounting::Connection.new_connection(
+    ActiveAccountingIntegration::Connection.new_connection(
       :quickbooks,
       access_token: quickbooks_access_token,
       refresh_token: quickbooks_refresh_token,
@@ -344,7 +344,7 @@ class User < ApplicationRecord
   def create_or_update_in_quickbooks
     if quickbooks_customer_id.nil?
       # Create new customer in QuickBooks
-      customer = ActiveAccountingIntegration::Accounting::Quickbooks::Customer.create(
+      customer = ActiveAccountingIntegration::Quickbooks::Customer.create(
         display_name: name,
         primary_email_address: { address: email },
         connection: quickbooks_customer_connection

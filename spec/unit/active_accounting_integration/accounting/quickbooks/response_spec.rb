@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Response) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::Response) do
   describe "attributes" do
     it "has query_response attribute" do
       response = described_class.new(query_response: nil)
@@ -39,7 +39,7 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Response) do
 
       it "deserializes query response from JSON" do
         response = described_class.from_json(json_data)
-        expect(response.query_response).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::QueryResponse))
+        expect(response.query_response).to(be_a(ActiveAccountingIntegration::Quickbooks::QueryResponse))
         expect(response.query_response.payments.length).to(eq(1))
         expect(response.query_response.payments.first.id).to(eq("pay_1"))
       end
@@ -57,26 +57,26 @@ RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::Response) do
       it "deserializes individual entities from JSON" do
         response = described_class.from_json(json_data)
 
-        expect(response.payment).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Payment))
+        expect(response.payment).to(be_a(ActiveAccountingIntegration::Quickbooks::Payment))
         expect(response.payment.id).to(eq("pay_2"))
         expect(response.payment.total).to(eq(200.00))
 
-        expect(response.customer).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Customer))
+        expect(response.customer).to(be_a(ActiveAccountingIntegration::Quickbooks::Customer))
         expect(response.customer.id).to(eq("cust_1"))
         expect(response.customer.display_name).to(eq("Test Customer"))
 
-        expect(response.invoice).to(be_a(ActiveAccountingIntegration::Accounting::Quickbooks::Invoice))
+        expect(response.invoice).to(be_a(ActiveAccountingIntegration::Quickbooks::Invoice))
         expect(response.invoice.id).to(eq("inv_1"))
         expect(response.invoice.total).to(eq(500.00))
       end
     end
 
     it "serializes to JSON" do
-      payment = ActiveAccountingIntegration::Accounting::Quickbooks::Payment.new
+      payment = ActiveAccountingIntegration::Quickbooks::Payment.new
       payment.id = "pay_3"
       payment.total = 300.00
 
-      customer = ActiveAccountingIntegration::Accounting::Quickbooks::Customer.new
+      customer = ActiveAccountingIntegration::Quickbooks::Customer.new
       customer.id = "cust_2"
       customer.display_name = "Customer 2"
 

@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::PhysicalAddress) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::PhysicalAddress) do
   describe "attributes" do
     let(:address) do
       described_class.new(

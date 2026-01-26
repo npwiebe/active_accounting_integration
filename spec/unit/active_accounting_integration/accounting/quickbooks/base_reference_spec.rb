@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::BaseReference) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::BaseReference) do
   describe "attributes" do
     it "has value attribute" do
       reference = described_class.new(value: "123")

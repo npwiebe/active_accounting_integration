@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::LinkedTransaction) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::LinkedTransaction) do
   describe "attributes" do
     let(:linked_txn) do
       described_class.new(

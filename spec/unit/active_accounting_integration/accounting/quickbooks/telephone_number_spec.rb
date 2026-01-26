@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::TelephoneNumber) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::TelephoneNumber) do
   describe "attributes" do
     it "has free_form_number attribute" do
       phone = described_class.new(free_form_number: "+1-555-1234")

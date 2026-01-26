@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::BaseAccountingModel) do
+RSpec.describe(ActiveAccountingIntegration::BaseAccountingModel) do
   let(:test_class) do
     Class.new(described_class) do
       attribute :name, Shale::Type::String

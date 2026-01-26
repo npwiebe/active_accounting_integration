@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::CreditCardPayment) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::CreditCardPayment) do
   describe "attributes" do
     let(:credit_card_payment) do
       described_class.new(

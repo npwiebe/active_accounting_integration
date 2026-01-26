@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::CustomField) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::CustomField) do
   describe "attributes" do
     let(:custom_field) do
       described_class.new(

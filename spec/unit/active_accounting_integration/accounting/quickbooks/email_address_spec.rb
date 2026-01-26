@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::EmailAddress) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::EmailAddress) do
   describe "attributes" do
     it "has address attribute" do
       email = described_class.new(address: "test@example.com")

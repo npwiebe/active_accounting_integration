@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe(ActiveAccountingIntegration::Accounting::Quickbooks::MetaData) do
+RSpec.describe(ActiveAccountingIntegration::Quickbooks::MetaData) do
   describe "attributes" do
     it "has create_time attribute" do
       metadata = described_class.new(create_time: "2024-01-01T10:00:00Z")
