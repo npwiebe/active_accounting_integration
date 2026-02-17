@@ -6,12 +6,13 @@ module ActiveAccountingIntegration
   class Configuration
     include Singleton
 
-    attr_accessor :quickbooks_client_id, :quickbooks_client_secret, :sandbox_mode
+    attr_accessor :quickbooks_client_id, :quickbooks_client_secret, :sandbox_mode, :connection_resolver
 
     def initialize
       @quickbooks_client_id = nil
       @quickbooks_client_secret = nil
       @sandbox_mode = nil
+      @connection_resolver = nil
     end
   end
 

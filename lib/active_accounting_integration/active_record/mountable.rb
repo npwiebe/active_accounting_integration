@@ -9,14 +9,13 @@ module ActiveAccountingIntegration
 
       included do
         class_attribute :_mounted_accounting_models, default: {}
-        # after_save :sync_to_mounted_accounting_models TODO: Implement this
       end
 
       module ClassMethods
-        def mounts_accounting_model(name, class_name:, external_id_column:, connection_method: nil, mapper_to: nil, mapper_from: nil, sync_on_save: false)
+        def mounts_accounting_model(name, class_name:, external_id_column:, mapper_to:, mapper_from:, connection_method: nil, sync_on_save: false)
           name = name.to_sym
           class_name = class_name.to_s
-          connection_method = connection_method&.to_sym || default_connection_method(name)
+          connection_method = connection_method&.to_sym
           external_id_column = external_id_column.to_sym
 
           self._mounted_accounting_models = _mounted_accounting_models.merge(
@@ -29,51 +28,87 @@ module ActiveAccountingIntegration
             },
           )
 
-          define_method(name) do
+          define_accounting_getter(name)
+          define_accounting_setter(name)
+          define_sync_to(name)
+          define_sync_from(name)
+        end
+
+        private
+
+        def define_accounting_getter(name)
+          define_method(name) do |reload: false|
+            ivar = "@_accounting_#{name}"
+            if instance_variable_defined?(ivar) && !reload
+              return instance_variable_get(ivar)
+            end
+
             config = self.class._mounted_accounting_models[name]
             return unless config
 
             external_id = public_send(config[:external_id_column])
             return unless external_id
 
-            accounting_class = config[:class_name].constantize
-            connection = public_send(config[:connection_method])
+            connection = resolve_accounting_connection(name, config)
             return unless connection
 
-            accounting_class.fetch_by_id(external_id, connection)
+            accounting_class = config[:class_name].constantize
+            result = accounting_class.fetch_by_id(external_id, connection)
+            instance_variable_set(ivar, result)
+            result
           end
+        end
 
+        def define_accounting_setter(name)
           define_method("#{name}=") do |accounting_model|
-            return unless accounting_model
+            ivar = "@_accounting_#{name}"
+
+            if accounting_model.nil?
+              instance_variable_set(ivar, nil)
+              return
+            end
 
             config = self.class._mounted_accounting_models[name]
             return unless config
 
-            external_id = accounting_model.external_id
+            external_id = accounting_model.id
             public_send("#{config[:external_id_column]}=", external_id) if external_id
+            instance_variable_set(ivar, accounting_model)
           end
+        end
 
+        def define_sync_to(name)
           define_method("sync_to_#{name}") do
             config = self.class._mounted_accounting_models[name]
             return unless config
 
-            accounting_model = public_send(name)
-            return unless accounting_model
+            connection = resolve_accounting_connection(name, config)
+            return unless connection
 
-            attributes = if config[:mapper_to]
-              instance_exec(accounting_model, &config[:mapper_to])
-            else
-              default_map_to_accounting_model(accounting_model, exclude: config[:external_id_column])
+            accounting_model = public_send(name)
+
+            if accounting_model.nil?
+              accounting_class = config[:class_name].constantize
+              accounting_model = accounting_class.new(connection: connection)
             end
+
+            attributes = instance_exec(accounting_model, &config[:mapper_to])
 
             attributes.each do |key, value|
-              setter = "#{key}=".to_sym
+              setter = "#{key}="
               accounting_model.public_send(setter, value) if accounting_model.respond_to?(setter)
             end
-            accounting_model.save if accounting_model.respond_to?(:save)
+
+            if accounting_model.save
+              public_send("#{config[:external_id_column]}=", accounting_model.id) if accounting_model.id
+              instance_variable_set("@_accounting_#{name}", accounting_model)
+            end
+
             accounting_model
           end
+        end
 
+        def define_sync_from(name)
           define_method("sync_from_#{name}") do
             config = self.class._mounted_accounting_models[name]
             return unless config
@@ -81,53 +116,23 @@ module ActiveAccountingIntegration
             accounting_model = public_send(name)
             return unless accounting_model
 
-            attributes = if config[:mapper_from]
-              instance_exec(accounting_model, &config[:mapper_from])
-            else
-              default_map_from_accounting_model(accounting_model)
-            end
+            attributes = instance_exec(accounting_model, &config[:mapper_from])
 
             assign_attributes(attributes)
             save
             self
           end
         end
-
-        private
-
-        def default_connection_method(name)
-          "#{name}_connection"
-        end
       end
 
       private
 
-      def default_map_to_accounting_model(accounting_model, exclude: nil)
-        default_map(from: self, to: accounting_model, exclude: exclude)
-      end
-
-      def default_map_from_accounting_model(accounting_model)
-        default_map(from: accounting_model, to: self)
-      end
-
-      def default_map(from:, to:, exclude: nil)
-        attributes = {}
-
-        return attributes unless from.respond_to?(:attributes)
-
-        from.attributes.keys.each do |attr_sym|
-          attr_sym = attr_sym.to_sym
-          next if exclude && attr_sym == exclude.to_sym
-
-          setter_name = "#{attr_sym}="
-
-          if to.respond_to?(setter_name)
-            value = from.public_send(attr_sym)
-            attributes[attr_sym] = value if value.present?
-          end
+      def resolve_accounting_connection(name, config)
+        if config[:connection_method]
+          public_send(config[:connection_method])
+        elsif ActiveAccountingIntegration.config.connection_resolver
+          ActiveAccountingIntegration.config.connection_resolver.call(self, name)
         end
-
-        attributes
       end
     end
   end

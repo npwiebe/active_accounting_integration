@@ -3,23 +3,28 @@
 require "spec_helper"
 
 RSpec.describe(ActiveAccountingIntegration::ActiveRecord::Mountable) do
+  let(:mapper_to) do
+    proc do |_accounting_model|
+      { given_name: first_name, family_name: last_name, display_name: name }
+    end
+  end
+
+  let(:mapper_from) do
+    proc do |accounting_model|
+      {
+        first_name: accounting_model.given_name,
+        last_name: accounting_model.family_name,
+        name: accounting_model.display_name,
+        email: accounting_model.email,
+      }
+    end
+  end
+
   let(:test_class) do
     Class.new do
       include ActiveAccountingIntegration::ActiveRecord::Mountable
 
-      # Mock ActiveRecord methods
       attr_accessor :name, :email, :first_name, :last_name, :quickbooks_customer_id
-
-      # Mock ActiveRecord-style attributes method
-      def attributes
-        {
-          "name" => name,
-          "email" => email,
-          "first_name" => first_name,
-          "last_name" => last_name,
-          "quickbooks_customer_id" => quickbooks_customer_id,
-        }
-      end
 
       def assign_attributes(attrs)
         attrs.each { |k, v| public_send("#{k}=", v) }
@@ -29,27 +34,8 @@ RSpec.describe(ActiveAccountingIntegration::ActiveRecord::Mountable) do
         true
       end
 
-      # Mock connection method - will be stubbed in tests
       def quickbooks_customer_connection
         nil
-      end
-
-      def quickbooks_customer_custom_connection
-        nil
-      end
-
-      def quickbooks_customer_separate_connection
-        nil
-      end
-
-      # Set up respond_to? expectations for common attributes
-      def respond_to?(method_name, include_private = false)
-        case method_name.to_s
-        when "name=", "email=", "first_name=", "last_name="
-          true
-        else
-          super
-        end
       end
     end
   end
@@ -57,105 +43,28 @@ RSpec.describe(ActiveAccountingIntegration::ActiveRecord::Mountable) do
   let(:mock_connection) { double("connection") }
   let(:mock_accounting_model) do
     double("accounting_model").tap do |model|
-      allow(model).to(receive(:external_id).and_return("123"))
-      allow(model).to(receive(:name).and_return("Test Customer"))
-      allow(model).to(receive(:email).and_return("test@example.com"))
-      allow(model).to(receive(:first_name).and_return("John"))
-      allow(model).to(receive(:last_name).and_return("Doe"))
-      # Add common attributes that the new mapping tries
-      allow(model).to(receive(:company_name).and_return("Test Company"))
-      allow(model).to(receive(:phone).and_return("555-1234"))
-      allow(model).to(receive(:address).and_return("123 Main St"))
-      allow(model).to(receive(:city).and_return("Anytown"))
-      allow(model).to(receive(:state).and_return("CA"))
-      allow(model).to(receive(:zip_code).and_return("12345"))
-      allow(model).to(receive(:country).and_return("USA"))
-      allow(model).to(receive(:description).and_return("Test description"))
-      allow(model).to(receive(:notes).and_return("Test notes"))
-      allow(model).to(receive(:balance).and_return(100.0))
-      allow(model).to(receive(:total).and_return(200.0))
-      allow(model).to(receive(:amount).and_return(150.0))
-      allow(model).to(receive(:price).and_return(50.0))
-      allow(model).to(receive(:cost).and_return(40.0))
-      allow(model).to(receive(:quantity).and_return(2))
-      allow(model).to(receive(:tax_rate).and_return(0.08))
-      allow(model).to(receive(:discount).and_return(10.0))
-      allow(model).to(receive(:due_date).and_return(Date.today))
-      allow(model).to(receive(:invoice_date).and_return(Date.today))
-      allow(model).to(receive(:paid_at).and_return(Date.today))
-
-      # Mock ActiveRecord-style attributes method
-      allow(model).to(receive(:attributes).and_return({
-        "name" => "Test Customer",
-        "email" => "test@example.com",
-        "first_name" => "John",
-        "last_name" => "Doe",
-        "company_name" => "Test Company",
-        "external_id" => "123",
-      }))
-
-      # Set up respond_to? expectations - allow setters for any attribute
-      allow(model).to(receive(:respond_to?)) do |method_name|
-        method_str = method_name.to_s
-        if method_str.end_with?("=")
-          # Allow any setter (for custom mappers)
-          true
-        else
-          method_str == "save" || method_str == "attributes" ||
-            [:name, :email, :first_name, :last_name, :company_name, :external_id].include?(method_name.to_sym)
-        end
-      end
-      allow(model).to(receive(:save))
+      allow(model).to(receive(:id).and_return("123"))
+      allow(model).to(receive(:given_name).and_return("John"))
+      allow(model).to(receive(:family_name).and_return("Doe"))
+      allow(model).to(receive(:display_name).and_return("John Doe"))
+      allow(model).to(receive(:email).and_return("john@example.com"))
+      allow(model).to(receive(:respond_to?).and_return(true))
+      allow(model).to(receive(:save).and_return(true))
+      allow(model).to(receive(:given_name=))
+      allow(model).to(receive(:family_name=))
+      allow(model).to(receive(:display_name=))
     end
   end
 
   let(:mock_accounting_class) do
     double("accounting_class").tap do |klass|
       allow(klass).to(receive(:fetch_by_id).and_return(mock_accounting_model))
-
-      allow(klass).to(receive(:attributes).and_return({
-        name: double(name: :name, setter: "name="),
-        email: double(name: :email, setter: "email="),
-        first_name: double(name: :first_name, setter: "first_name="),
-        last_name: double(name: :last_name, setter: "last_name="),
-        company_name: double(name: :company_name, setter: "company_name="),
-      }))
+      allow(klass).to(receive(:new).and_return(mock_accounting_model))
     end
   end
 
   describe ".mounts_accounting_model" do
-    before do
-      allow(mock_accounting_class).to(receive(:fetch_by_id).and_return(mock_accounting_model))
-    end
-
     it "stores configuration in class attribute" do
-      test_class.mounts_accounting_model(
-        :quickbooks_customer,
-        class_name: "TestAccountingModel",
-        external_id_column: :quickbooks_customer_id,
-      )
-
-      config = test_class._mounted_accounting_models[:quickbooks_customer]
-      expect(config[:class_name]).to(eq("TestAccountingModel"))
-      expect(config[:external_id_column]).to(eq(:quickbooks_customer_id))
-      expect(config[:connection_method]).to(eq("quickbooks_customer_connection"))
-    end
-
-    it "allows custom connection method" do
-      test_class.mounts_accounting_model(
-        :quickbooks_customer,
-        class_name: "TestAccountingModel",
-        external_id_column: :quickbooks_customer_id,
-        connection_method: :custom_connection,
-      )
-
-      config = test_class._mounted_accounting_models[:quickbooks_customer]
-      expect(config[:connection_method]).to(eq(:custom_connection))
-    end
-
-    it "stores custom mapper" do
-      mapper_to = proc { {} }
-      mapper_from = proc { {} }
       test_class.mounts_accounting_model(
         :quickbooks_customer,
         class_name: "TestAccountingModel",
@@ -165,346 +74,336 @@ RSpec.describe(ActiveAccountingIntegration::ActiveRecord::Mountable) do
       )
 
       config = test_class._mounted_accounting_models[:quickbooks_customer]
+      expect(config[:class_name]).to(eq("TestAccountingModel"))
+      expect(config[:external_id_column]).to(eq(:quickbooks_customer_id))
       expect(config[:mapper_to]).to(eq(mapper_to))
       expect(config[:mapper_from]).to(eq(mapper_from))
     end
+
+    it "allows custom connection method" do
+      test_class.mounts_accounting_model(
+        :quickbooks_customer,
+        class_name: "TestAccountingModel",
+        external_id_column: :quickbooks_customer_id,
+        connection_method: :custom_connection,
+        mapper_to: mapper_to,
+        mapper_from: mapper_from,
+      )
+
+      config = test_class._mounted_accounting_models[:quickbooks_customer]
+      expect(config[:connection_method]).to(eq(:custom_connection))
+    end
+
+    it "does not require connection_method when connection_resolver is configured" do
+      allow(ActiveAccountingIntegration.config).to(receive(:connection_resolver).and_return(->(_record, _mount_name) { mock_connection }))
+
+      test_class.mounts_accounting_model(
+        :quickbooks_customer,
+        class_name: "TestAccountingModel",
+        external_id_column: :quickbooks_customer_id,
+        mapper_to: mapper_to,
+        mapper_from: mapper_from,
+      )
+
+      config = test_class._mounted_accounting_models[:quickbooks_customer]
+      expect(config[:connection_method]).to(be_nil)
+    end
   end
 
-  describe "generated methods" do
+  describe "generated getter" do
     before do
       stub_const("TestAccountingModel", mock_accounting_class)
       test_class.mounts_accounting_model(
         :quickbooks_customer,
         class_name: "TestAccountingModel",
         external_id_column: :quickbooks_customer_id,
+        connection_method: :quickbooks_customer_connection,
+        mapper_to: mapper_to,
+        mapper_from: mapper_from,
       )
     end
 
     let(:instance) { test_class.new }
 
-    describe "getter method" do
-      it "returns nil when external_id is not set" do
-        instance.quickbooks_customer_id = nil
-        expect(instance.quickbooks_customer).to(be_nil)
-      end
+    it "returns nil when external_id is not set" do
+      instance.quickbooks_customer_id = nil
+      expect(instance.quickbooks_customer).to(be_nil)
+    end
 
-      it "returns nil when connection is not available" do
-        instance.quickbooks_customer_id = "123"
-        allow(instance).to(receive(:quickbooks_customer_connection).and_return(nil))
-        expect(instance.quickbooks_customer).to(be_nil)
-      end
+    it "returns nil when connection is not available" do
+      instance.quickbooks_customer_id = "123"
+      allow(instance).to(receive(:quickbooks_customer_connection).and_return(nil))
+      expect(instance.quickbooks_customer).to(be_nil)
+    end
 
-      it "fetches and returns accounting model when external_id and connection are available" do
+    it "fetches and returns accounting model when external_id and connection are available" do
+      instance.quickbooks_customer_id = "123"
+      allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
+
+      result = instance.quickbooks_customer
+
+      expect(mock_accounting_class).to(have_received(:fetch_by_id).with("123", mock_connection))
+      expect(result).to(eq(mock_accounting_model))
+    end
+
+    it "caches the result and does not fetch again" do
+      instance.quickbooks_customer_id = "123"
+      allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
+
+      instance.quickbooks_customer
+      instance.quickbooks_customer
+
+      expect(mock_accounting_class).to(have_received(:fetch_by_id).once)
+    end
+
+    it "re-fetches when reload: true is passed" do
+      instance.quickbooks_customer_id = "123"
+      allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
+
+      instance.quickbooks_customer
+      instance.quickbooks_customer(reload: true)
+
+      expect(mock_accounting_class).to(have_received(:fetch_by_id).twice)
+    end
+  end
+
+  describe "generated setter" do
+    before do
+      stub_const("TestAccountingModel", mock_accounting_class)
+      test_class.mounts_accounting_model(
+        :quickbooks_customer,
+        class_name: "TestAccountingModel",
+        external_id_column: :quickbooks_customer_id,
+        connection_method: :quickbooks_customer_connection,
+        mapper_to: mapper_to,
+        mapper_from: mapper_from,
+      )
+    end
+
+    let(:instance) { test_class.new }
+
+    it "sets external_id from accounting model" do
+      instance.quickbooks_customer = mock_accounting_model
+
+      expect(instance.quickbooks_customer_id).to(eq("123"))
+    end
+
+    it "caches the assigned model" do
+      instance.quickbooks_customer_id = "123"
+      allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
+
+      instance.quickbooks_customer = mock_accounting_model
+      instance.quickbooks_customer
+
+      expect(mock_accounting_class).not_to(have_received(:fetch_by_id))
+    end
+
+    it "clears cache when set to nil" do
+      instance.quickbooks_customer = mock_accounting_model
+      instance.quickbooks_customer = nil
+
+      expect(instance.instance_variable_get(:@_accounting_quickbooks_customer)).to(be_nil)
+    end
+
+    it "does not change external_id when set to nil" do
+      instance.quickbooks_customer_id = "existing"
+      instance.quickbooks_customer = nil
+
+      expect(instance.quickbooks_customer_id).to(eq("existing"))
+    end
+  end
+
+  describe "sync_to_* method" do
+    before do
+      stub_const("TestAccountingModel", mock_accounting_class)
+      test_class.mounts_accounting_model(
+        :quickbooks_customer,
+        class_name: "TestAccountingModel",
+        external_id_column: :quickbooks_customer_id,
+        connection_method: :quickbooks_customer_connection,
+        mapper_to: mapper_to,
+        mapper_from: mapper_from,
+      )
+    end
+
+    let(:instance) { test_class.new }
+
+    context "when accounting model already exists" do
+      before do
         instance.quickbooks_customer_id = "123"
         allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
+      end
 
-        result = instance.quickbooks_customer
+      it "updates accounting model with mapped attributes and saves" do
+        instance.first_name = "Jane"
+        instance.last_name = "Smith"
+        instance.name = "Jane Smith"
 
-        expect(mock_accounting_class).to(have_received(:fetch_by_id).with("123", mock_connection))
+        result = instance.sync_to_quickbooks_customer
+
+        expect(mock_accounting_model).to(have_received(:given_name=).with("Jane"))
+        expect(mock_accounting_model).to(have_received(:family_name=).with("Smith"))
+        expect(mock_accounting_model).to(have_received(:display_name=).with("Jane Smith"))
+        expect(mock_accounting_model).to(have_received(:save))
         expect(result).to(eq(mock_accounting_model))
       end
     end
 
-    describe "setter method" do
-      it "sets external_id from accounting model" do
-        instance.quickbooks_customer = mock_accounting_model
-
-        expect(instance.quickbooks_customer_id).to(eq("123"))
-      end
-
-      it "does nothing if accounting model is nil" do
-        instance.quickbooks_customer_id = "existing"
-        instance.quickbooks_customer = nil
-
-        expect(instance.quickbooks_customer_id).to(eq("existing"))
-      end
-    end
-
-    describe "sync_to_* method" do
+    context "when accounting model does not exist (create-on-sync)" do
       before do
-        instance.quickbooks_customer_id = "123"
+        instance.quickbooks_customer_id = nil
         allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
-        allow(mock_accounting_model).to(receive(:save))
-        allow(mock_accounting_model).to(receive(:name=))
-        allow(mock_accounting_model).to(receive(:email=))
       end
 
-      it "updates accounting model with default mapping" do
-        instance.name = "Updated Name"
-        instance.email = "updated@example.com"
+      it "creates a new accounting model, maps attributes, and saves" do
+        instance.first_name = "New"
+        instance.last_name = "Customer"
+        instance.name = "New Customer"
 
         result = instance.sync_to_quickbooks_customer
 
-        expect(mock_accounting_model).to(have_received(:name=).with("Updated Name"))
-        expect(mock_accounting_model).to(have_received(:email=).with("updated@example.com"))
+        expect(mock_accounting_class).to(have_received(:new).with(connection: mock_connection))
+        expect(mock_accounting_model).to(have_received(:given_name=).with("New"))
+        expect(mock_accounting_model).to(have_received(:family_name=).with("Customer"))
         expect(mock_accounting_model).to(have_received(:save))
         expect(result).to(eq(mock_accounting_model))
       end
 
-      it "uses custom mapper when provided" do
-        custom_mapper = proc do |_accounting_model|
-          { name: "Custom #{name}", custom_field: "value" }
-        end
+      it "stores the new external_id after successful save" do
+        instance.first_name = "New"
+        instance.last_name = "Customer"
+        instance.name = "New Customer"
 
-        # Remount with custom mapper
-        stub_const("TestAccountingModel", mock_accounting_class)
-        test_class.mounts_accounting_model(
-          :quickbooks_customer_custom,
-          class_name: "TestAccountingModel",
-          external_id_column: :quickbooks_customer_id,
-          mapper_to: custom_mapper,
-        )
+        instance.sync_to_quickbooks_customer
 
-        allow(mock_accounting_model).to(receive(:custom_field=))
-        instance.name = "Test"
-        allow(instance).to(receive(:quickbooks_customer_custom_connection).and_return(mock_connection))
-
-        result = instance.sync_to_quickbooks_customer_custom
-
-        expect(mock_accounting_model).to(have_received(:name=).with("Custom Test"))
-        expect(mock_accounting_model).to(have_received(:custom_field=).with("value"))
-        expect(result).to(eq(mock_accounting_model))
-      end
-
-      it "returns nil when accounting model is not available" do
-        allow(instance).to(receive(:quickbooks_customer).and_return(nil))
-
-        result = instance.sync_to_quickbooks_customer
-
-        expect(result).to(be_nil)
+        expect(instance.quickbooks_customer_id).to(eq("123"))
       end
     end
 
-    describe "sync_from_* method" do
+    it "returns nil when connection is not available" do
+      allow(instance).to(receive(:quickbooks_customer_connection).and_return(nil))
+      allow(ActiveAccountingIntegration.config).to(receive(:connection_resolver).and_return(nil))
+
+      result = instance.sync_to_quickbooks_customer
+
+      expect(result).to(be_nil)
+    end
+  end
+
+  describe "sync_from_* method" do
+    before do
+      stub_const("TestAccountingModel", mock_accounting_class)
+      test_class.mounts_accounting_model(
+        :quickbooks_customer,
+        class_name: "TestAccountingModel",
+        external_id_column: :quickbooks_customer_id,
+        connection_method: :quickbooks_customer_connection,
+        mapper_to: mapper_to,
+        mapper_from: mapper_from,
+      )
+    end
+
+    let(:instance) { test_class.new }
+
+    before do
+      instance.quickbooks_customer_id = "123"
+      allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
+      allow(instance).to(receive(:save).and_return(true))
+    end
+
+    it "updates ActiveRecord model with mapped attributes from accounting model" do
+      result = instance.sync_from_quickbooks_customer
+
+      expect(instance.first_name).to(eq("John"))
+      expect(instance.last_name).to(eq("Doe"))
+      expect(instance.name).to(eq("John Doe"))
+      expect(instance.email).to(eq("john@example.com"))
+      expect(instance).to(have_received(:save))
+      expect(result).to(eq(instance))
+    end
+
+    it "returns nil when accounting model is not available" do
+      allow(instance).to(receive(:quickbooks_customer).and_return(nil))
+
+      result = instance.sync_from_quickbooks_customer
+
+      expect(result).to(be_nil)
+    end
+  end
+
+  describe "connection resolution" do
+    before do
+      stub_const("TestAccountingModel", mock_accounting_class)
+    end
+
+    let(:instance) { test_class.new }
+
+    context "with connection_method" do
       before do
-        instance.quickbooks_customer_id = "123"
-        allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
-        allow(instance).to(receive(:save).and_return(true))
-      end
-
-      it "updates ActiveRecord model with default mapping" do
-        result = instance.sync_from_quickbooks_customer
-
-        expect(instance.name).to(eq("Test Customer"))
-        expect(instance.email).to(eq("test@example.com"))
-        expect(instance.first_name).to(eq("John"))
-        expect(instance.last_name).to(eq("Doe"))
-        expect(instance).to(have_received(:save))
-        expect(result).to(eq(instance))
-      end
-
-      it "uses custom mapper when provided" do
-        custom_mapper = proc do |accounting_model|
-          {
-            name: "#{accounting_model.name} (Mapped)",
-            email: accounting_model.email.upcase,
-          }
-        end
-
-        # Remount with custom mapper
-        stub_const("TestAccountingModel", mock_accounting_class)
         test_class.mounts_accounting_model(
-          :quickbooks_customer_custom,
+          :quickbooks_customer,
           class_name: "TestAccountingModel",
           external_id_column: :quickbooks_customer_id,
-          mapper_from: custom_mapper,
+          connection_method: :quickbooks_customer_connection,
+          mapper_to: mapper_to,
+          mapper_from: mapper_from,
         )
-
-        allow(instance).to(receive(:quickbooks_customer_custom_connection).and_return(mock_connection))
-
-        result = instance.sync_from_quickbooks_customer_custom
-
-        expect(instance.name).to(eq("Test Customer (Mapped)"))
-        expect(instance.email).to(eq("TEST@EXAMPLE.COM"))
-        expect(result).to(eq(instance))
       end
 
-      it "uses separate mapper_to and mapper_from when provided" do
-        mapper_to = proc do |_accounting_model|
-          # Rails -> Accounting
-          {
-            display_name: "#{first_name} #{last_name}",
-            primary_email_address: { address: email },
-          }
-        end
+      it "uses the connection_method on the instance" do
+        instance.quickbooks_customer_id = "123"
+        allow(instance).to(receive(:quickbooks_customer_connection).and_return(mock_connection))
 
-        mapper_from = proc do |accounting_model|
-          # Accounting -> Rails
-          {
-            first_name: accounting_model.given_name,
-            last_name: accounting_model.family_name,
-            email: accounting_model.primary_email_address&.address,
-          }
-        end
+        instance.quickbooks_customer
 
-        mock_accounting_model_with_names = double("accounting_model").tap do |model|
-          allow(model).to(receive(:external_id).and_return("123"))
-          allow(model).to(receive(:given_name).and_return("Jane"))
-          allow(model).to(receive(:family_name).and_return("Smith"))
-          allow(model).to(receive(:primary_email_address).and_return(double(address: "jane@example.com")))
-          allow(model).to(receive(:display_name=))
-          allow(model).to(receive(:primary_email_address=))
-          allow(model).to(receive(:save))
-          # Mock ActiveRecord-style attributes method
-          allow(model).to(receive(:attributes).and_return({
-            "given_name" => "Jane",
-            "family_name" => "Smith",
-            "primary_email_address" => double(address: "jane@example.com"),
-            "external_id" => "123",
-          }))
-        end
+        expect(instance).to(have_received(:quickbooks_customer_connection))
+      end
+    end
 
-        mock_accounting_class_with_names = double("accounting_class").tap do |klass|
-          allow(klass).to(receive(:fetch_by_id).and_return(mock_accounting_model_with_names))
-        end
+    context "with connection_resolver" do
+      let(:resolver) { ->(_record, _mount_name) { mock_connection } }
 
-        stub_const("TestAccountingModel", mock_accounting_class_with_names)
+      before do
+        allow(ActiveAccountingIntegration.config).to(receive(:connection_resolver).and_return(resolver))
+
         test_class.mounts_accounting_model(
-          :quickbooks_customer_separate,
+          :quickbooks_customer,
           class_name: "TestAccountingModel",
           external_id_column: :quickbooks_customer_id,
           mapper_to: mapper_to,
           mapper_from: mapper_from,
         )
-
-        instance.first_name = "John"
-        instance.last_name = "Doe"
-        instance.email = "john@example.com"
-        instance.quickbooks_customer_id = "123"
-        allow(instance).to(receive(:quickbooks_customer_separate_connection).and_return(mock_connection))
-
-        # Test sync_to direction
-        instance.sync_to_quickbooks_customer_separate
-        expect(mock_accounting_model_with_names).to(have_received(:display_name=).with("John Doe"))
-        expect(mock_accounting_model_with_names).to(have_received(:primary_email_address=).with({ address: "john@example.com" }))
-
-        # Test sync_from direction
-        instance.sync_from_quickbooks_customer_separate
-        expect(instance.first_name).to(eq("Jane"))
-        expect(instance.last_name).to(eq("Smith"))
-        expect(instance.email).to(eq("jane@example.com"))
       end
 
-      it "returns nil when accounting model is not available" do
-        allow(instance).to(receive(:quickbooks_customer).and_return(nil))
+      it "uses the global connection_resolver" do
+        instance.quickbooks_customer_id = "123"
 
-        result = instance.sync_from_quickbooks_customer
+        result = instance.quickbooks_customer
+
+        expect(result).to(eq(mock_accounting_model))
+      end
+    end
+
+    context "with neither connection_method nor connection_resolver" do
+      before do
+        allow(ActiveAccountingIntegration.config).to(receive(:connection_resolver).and_return(nil))
+
+        test_class.mounts_accounting_model(
+          :quickbooks_customer,
+          class_name: "TestAccountingModel",
+          external_id_column: :quickbooks_customer_id,
+          mapper_to: mapper_to,
+          mapper_from: mapper_from,
+        )
+      end
+
+      it "returns nil from getter" do
+        instance.quickbooks_customer_id = "123"
+
+        result = instance.quickbooks_customer
 
         expect(result).to(be_nil)
       end
-    end
-  end
-
-  describe ".default_connection_method" do
-    it "generates connection method name from mounted model name" do
-      expect(test_class.send(:default_connection_method, :quickbooks_customer)).to(eq("quickbooks_customer_connection"))
-      expect(test_class.send(:default_connection_method, :xero_contact)).to(eq("xero_contact_connection"))
-    end
-  end
-
-  describe "#default_map_to_accounting_model" do
-    let(:instance) do
-      test_class.new.tap do |obj|
-        obj.name = "Test Company"
-        obj.email = "test@example.com"
-        obj.first_name = "John"
-        obj.last_name = "Doe"
-      end
-    end
-
-    it "maps common attributes that exist on both models" do
-      attributes = instance.send(:default_map_to_accounting_model, mock_accounting_model)
-
-      expect(attributes[:name]).to(eq("Test Company"))
-      expect(attributes[:email]).to(eq("test@example.com"))
-      expect(attributes[:first_name]).to(eq("John"))
-      expect(attributes[:last_name]).to(eq("Doe"))
-      expect(attributes[:company_name]).to(be_nil) # not set
-    end
-
-    it "excludes attributes that don't exist on accounting model" do
-      test_model = double("accounting_model")
-      allow(test_model).to(receive(:respond_to?)) do |method_name|
-        method_str = method_name.to_s
-        if method_str.end_with?("=")
-          # Only allow setters for attributes that exist on the accounting model
-          attr_name = method_str.chomp("=").to_sym
-          [:email, :first_name, :last_name, :company_name].include?(attr_name)
-        else
-          method_str == "attributes"
-        end
-      end
-      # Mock ActiveRecord-style attributes method
-      allow(test_model).to(receive(:attributes).and_return({
-        "email" => nil,
-        "first_name" => nil,
-        "last_name" => nil,
-        "company_name" => nil,
-      }))
-
-      attributes = instance.send(:default_map_to_accounting_model, test_model)
-
-      expect(attributes[:name]).to(be_nil)
-      expect(attributes[:email]).to(eq("test@example.com"))
-    end
-
-    it "excludes blank values" do
-      instance.name = ""
-      instance.email = nil
-
-      attributes = instance.send(:default_map_to_accounting_model, mock_accounting_model)
-
-      expect(attributes[:name]).to(be_nil)
-      expect(attributes[:email]).to(be_nil)
-      expect(attributes[:first_name]).to(eq("John"))
-    end
-  end
-
-  describe "#default_map_from_accounting_model" do
-    let(:instance) { test_class.new }
-
-    it "maps common attributes that exist on both models" do
-      attributes = instance.send(:default_map_from_accounting_model, mock_accounting_model)
-
-      expect(attributes[:name]).to(eq("Test Customer"))
-      expect(attributes[:email]).to(eq("test@example.com"))
-      expect(attributes[:first_name]).to(eq("John"))
-      expect(attributes[:last_name]).to(eq("Doe"))
-    end
-
-    it "excludes attributes that don't exist on ActiveRecord model" do
-      test_instance = test_class.new
-      # Allow all respond_to? calls by default, then override specific ones
-      allow(test_instance).to(receive(:respond_to?).and_return(true))
-      allow(test_instance).to(receive(:respond_to?).with("name=").and_return(false))
-
-      attributes = test_instance.send(:default_map_from_accounting_model, mock_accounting_model)
-
-      expect(attributes[:name]).to(be_nil)
-      expect(attributes[:email]).to(eq("test@example.com"))
-    end
-
-    it "excludes blank values from accounting model" do
-      blank_accounting_model = double("accounting_model").tap do |model|
-        allow(model).to(receive(:name).and_return(""))
-        allow(model).to(receive(:email).and_return(nil))
-        allow(model).to(receive(:first_name).and_return("John"))
-        allow(model).to(receive(:last_name).and_return("Doe"))
-        # Mock ActiveRecord-style attributes method
-        allow(model).to(receive(:attributes).and_return({
-          "name" => "",
-          "email" => nil,
-          "first_name" => "John",
-          "last_name" => "Doe",
-        }))
-      end
-
-      attributes = instance.send(:default_map_from_accounting_model, blank_accounting_model)
-
-      expect(attributes[:name]).to(be_nil)
-      expect(attributes[:email]).to(be_nil)
-      expect(attributes[:first_name]).to(eq("John"))
-      expect(attributes[:last_name]).to(eq("Doe"))
     end
   end
 end

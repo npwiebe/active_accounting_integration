@@ -91,6 +91,11 @@ RSpec.describe(ActiveAccountingIntegration::Configuration) do
       expect(configuration).to(respond_to(:sandbox_mode))
       expect(configuration).to(respond_to(:sandbox_mode=))
     end
+
+    it "has connection_resolver attribute" do
+      expect(configuration).to(respond_to(:connection_resolver))
+      expect(configuration).to(respond_to(:connection_resolver=))
+    end
   end
 
   describe "default values" do
@@ -98,6 +103,7 @@ RSpec.describe(ActiveAccountingIntegration::Configuration) do
       expect(configuration.quickbooks_client_id).to(be_nil)
       expect(configuration.quickbooks_client_secret).to(be_nil)
       expect(configuration.sandbox_mode).to(be_nil)
+      expect(configuration.connection_resolver).to(be_nil)
     end
   end
 
